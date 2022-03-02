@@ -28,10 +28,9 @@ parameters:
       - S41909SPS03_v0010ms
       - S41909SPS03_v0009ms
       - S41909SPS03_v0008ms
-      - S41909SPS03_v0007ms
-      - BW4HANA2021SPS01_v0002ms
-      - HANA_2_00_055_v0005ms
-      - NW750SPS20_v0002ms
+      - HANA_2_00_055_v0006ms
+      - NW750SPS20_v0004ms
+      - ORACLE_19_00_v0002ms
 
   - name:                              base_os_configuration
     displayName:                       Core Operating System Configuration
@@ -58,6 +57,11 @@ parameters:
     type:                              boolean
     default:                           true
 
+  - name:                              high_availability_configuration
+    displayName:                       SAP & DB High Availability Setup
+    type:                              boolean
+    default:                           true
+
   - name:                              db_load
     displayName: Database Load
     type:                              boolean
@@ -75,11 +79,6 @@ parameters:
 
   - name:                              webdispatcher_installation
     displayName:                       WebDispatcher Installation
-    type:                              boolean
-    default:                           false
-
-  - name:                              high_availability_configuration
-    displayName:                       SAP & DB High Availability Setup
     type:                              boolean
     default:                           false
 
@@ -105,6 +104,7 @@ stages:
         workspace:
           clean:                       all
         steps:
+          - task:                      PostBuildCleanup@3
           - checkout:                  self
             persistCredentials:        true
           - bash: |
@@ -245,7 +245,7 @@ stages:
           CONFIGURATION_NAME:          $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.CONFIGURATION_NAME'] ]
 
         steps:
-          - checkout:                  none
+          - checkout:                  self
             persistCredentials:        true
           - download:                  current
             artifact:                  ansible_data
@@ -255,8 +255,8 @@ stages:
               echo $(parameters_folder)
               echo $(DEPLOYMENT_REPO_PATH)
               sudo chmod 600 $(Pipeline.Workspace)/ansible_data/$(CONFIGURATION_NAME)_sshkey
+            displayName:               "Variables & Process sshkey"
 
-            displayName: Variables
           - task:                      Ansible@0
             displayName:               Validate the input parameters
             inputs:
@@ -271,9 +271,9 @@ stages:
 
             env:
               ANSIBLE_DISPLAY_SKIPPED_HOSTS: false
-              ANSIBLE_CALLBACK_WHITELIST: profile_tasks
-              ANSIBLE_HOST_KEY_CHECKING: false
-              DEPLOYMENT_REPO_PATH:    $(DEPLOYMENT_REPO_PATH)
+              INTERPRETER_PYTHON:            auto_silent
+              ANSIBLE_CALLBACK_WHITELIST:    profile_tasks
+              DEPLOYMENT_REPO_PATH:          $(DEPLOYMENT_REPO_PATH)
             continueOnError:           false
 
   - stage:                             Core_Operating_System_Configuration
@@ -300,12 +300,13 @@ stages:
           CONFIGURATION_NAME:          $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.CONFIGURATION_NAME'] ]
 
         steps:
-          - checkout:                  none
+          - checkout:                  self
             persistCredentials:        true
           - download:                  current
             artifact:                  ansible_data
           - script: |
               sudo chmod 600 $(Pipeline.Workspace)/ansible_data/$(CONFIGURATION_NAME)_sshkey
+            displayName:               Process sshkey
           - task:                      Ansible@0
             displayName:               Core Operating System Configuration
             inputs:
@@ -348,12 +349,13 @@ stages:
           CONFIGURATION_NAME:          $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.CONFIGURATION_NAME'] ]
 
         steps:
-          - checkout:                  none
+          - checkout:                  self
             persistCredentials:        true
           - download:                  current
             artifact:                  ansible_data
           - script: |
               sudo chmod 600 $(Pipeline.Workspace)/ansible_data/$(CONFIGURATION_NAME)_sshkey
+            displayName:               Process sshkey
           - task:                      Ansible@0
             displayName:               SAP Operating System Configuration
             inputs:
@@ -365,8 +367,9 @@ stages:
               failOnStderr:            false
             env:
               ANSIBLE_DISPLAY_SKIPPED_HOSTS: false
-              ANSIBLE_CALLBACK_WHITELIST: profile_tasks
-              DEPLOYMENT_REPO_PATH:    $(DEPLOYMENT_REPO_PATH)
+              INTERPRETER_PYTHON:            auto_silent
+              ANSIBLE_CALLBACK_WHITELIST:    profile_tasks
+              DEPLOYMENT_REPO_PATH:          $(DEPLOYMENT_REPO_PATH)
             continueOnError:           false
 
   - stage:                             Software_Acquisition
@@ -393,12 +396,13 @@ stages:
           CONFIGURATION_NAME:          $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.CONFIGURATION_NAME'] ]
 
         steps:
-          - checkout:                  none
+          - checkout:                  self
             persistCredentials:        true
           - download:                  current
             artifact:                  ansible_data
           - script: |
               sudo chmod 600 $(Pipeline.Workspace)/ansible_data/$(CONFIGURATION_NAME)_sshkey
+            displayName:               Process sshkey
           - task:                      Ansible@0
             displayName:               Software Acquisition
             inputs:
@@ -410,8 +414,9 @@ stages:
               failOnStderr:            false
             env:
               ANSIBLE_DISPLAY_SKIPPED_HOSTS: false
-              ANSIBLE_CALLBACK_WHITELIST: profile_tasks
-              DEPLOYMENT_REPO_PATH:    $(DEPLOYMENT_REPO_PATH)
+              INTERPRETER_PYTHON:            auto_silent
+              ANSIBLE_CALLBACK_WHITELIST:    profile_tasks
+              DEPLOYMENT_REPO_PATH:          $(DEPLOYMENT_REPO_PATH)
             continueOnError:           false
 
   - stage: Database_Installation
@@ -425,6 +430,7 @@ stages:
       (
         eq(${{ parameters.database_install }}, true),
         eq(dependencies.Preparation_for_Ansible.result, 'Succeeded'),
+        in(dependencies.Software_Acquisition.result, 'Succeeded', 'Skipped'),
         eq(dependencies.Validate_Parameters.result, 'Succeeded')
       )
     jobs:
@@ -439,12 +445,13 @@ stages:
           CONFIGURATION_NAME:          $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.CONFIGURATION_NAME'] ]
 
         steps:
-          - checkout:                  none
+          - checkout:                  self
             persistCredentials:        true
           - download:                  current
             artifact:                  ansible_data
           - script: |
               sudo chmod 600 $(Pipeline.Workspace)/ansible_data/$(CONFIGURATION_NAME)_sshkey
+            displayName:               Process sshkey
           - task:                      Ansible@0
             displayName:               Database Installation
             inputs:
@@ -456,9 +463,29 @@ stages:
               failOnStderr:            false
             env:
               ANSIBLE_DISPLAY_SKIPPED_HOSTS: false
-              ANSIBLE_CALLBACK_WHITELIST: profile_tasks
-              DEPLOYMENT_REPO_PATH:    $(DEPLOYMENT_REPO_PATH)
+              INTERPRETER_PYTHON:            auto_silent
+              ANSIBLE_CALLBACK_WHITELIST:    profile_tasks
+              DEPLOYMENT_REPO_PATH:          $(DEPLOYMENT_REPO_PATH)
             continueOnError:           false
+          - script: |
+              #!/bin/bash
+              green="\e[1;32m" ; reset="\e[0m" ; boldred="\e[1;31m"
+              echo -e "$green--- Add & update files in the DevOps Repository ---$reset"
+                git config --global user.email "$(Build.RequestedForEmail)"
+                git config --global user.name "$(Build.RequestedFor)"
+                git checkout -q $(Branch)
+                git pull
+                cd $(Build.Repository.LocalPath)
+                added=0
+                if [ $(ls $(Deployment_Configuration_Path)/SYSTEM/$(sap_system_folder)/logs/*.zip | wc -l ) -gt 0 ] ; then
+                  git add --ignore-errors $(Deployment_Configuration_Path)/SYSTEM/$(sap_system_folder)/logs
+                  added=1
+                fi
+                if [ 1 == $added ]; then
+                  git commit -m "Added updates from devops Ansible deployment $(Build.DefinitionName) [skip ci]"
+                  git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" push
+                fi
+            displayName:               Copy Log files
 
   - stage: SCS_Installation
     displayName:                       SCS Installation
@@ -472,7 +499,7 @@ stages:
       (
         eq(${{ parameters.scs_installation }}, true),
         eq(dependencies.Preparation_for_Ansible.result, 'Succeeded'),
-        eq(dependencies.Software_Acquisition.result, 'Succeeded'),
+        in(dependencies.Software_Acquisition.result, 'Succeeded', 'Skipped'),
         eq(dependencies.Validate_Parameters.result, 'Succeeded')
       )
     jobs:
@@ -487,12 +514,13 @@ stages:
           CONFIGURATION_NAME:          $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.CONFIGURATION_NAME'] ]
 
         steps:
-          - checkout:                  none
+          - checkout:                  self
             persistCredentials:        true
           - download:                  current
             artifact:                  ansible_data
           - script: |
               sudo chmod 600 $(Pipeline.Workspace)/ansible_data/$(CONFIGURATION_NAME)_sshkey
+            displayName:               Process sshkey
           - task:                      Ansible@0
             displayName:               SCS Installation
             inputs:
@@ -504,9 +532,82 @@ stages:
               failOnStderr:            false
             env:
               ANSIBLE_DISPLAY_SKIPPED_HOSTS: false
-              ANSIBLE_CALLBACK_WHITELIST: profile_tasks
-              DEPLOYMENT_REPO_PATH:    $(DEPLOYMENT_REPO_PATH)
+              INTERPRETER_PYTHON:            auto_silent
+              ANSIBLE_CALLBACK_WHITELIST:    profile_tasks
+              DEPLOYMENT_REPO_PATH:          $(DEPLOYMENT_REPO_PATH)
+          - script: |
+              #!/bin/bash
+              green="\e[1;32m" ; reset="\e[0m" ; boldred="\e[1;31m"
+              echo -e "$green--- Add & update files in the DevOps Repository ---$reset"
+                git config --global user.email "$(Build.RequestedForEmail)"
+                git config --global user.name "$(Build.RequestedFor)"
+                git checkout -q $(Branch)
+                git pull
+                cd $(Build.Repository.LocalPath)
+                added=0
+                if [ $(ls $(Deployment_Configuration_Path)/SYSTEM/$(sap_system_folder)/logs/*.zip | wc -l ) -gt 0 ] ; then
+                  git add --ignore-errors $(Deployment_Configuration_Path)/SYSTEM/$(sap_system_folder)/logs
+                  added=1
+                fi
+                if [ 1 == $added ]; then
+                  git commit -m "Added updates from devops Ansible deployment $(Build.DefinitionName) [skip ci]"
+                  git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" push
+                fi
+            displayName:               Copy Log files
+
+  - stage:                             HighAvailability_Setup
+    displayName:                       High Availability Setup
+    dependsOn:
+      - Preparation_for_Ansible
+      - SAP_Operating_System_Configuration
+      - Software_Acquisition
+      - SCS_Installation
+      - Database_Installation
+    condition: |
+      and
+      (
+        eq(${{ parameters.high_availability_configuration }}, true),
+        eq(dependencies.Preparation_for_Ansible.result, 'Succeeded'),
+        in(dependencies.Software_Acquisition.result, 'Succeeded', 'Skipped'),
+        in(dependencies.Database_Installation.result, 'Succeeded', 'Skipped'),
+        in(dependencies.SCS_Installation.result, 'Succeeded', 'Skipped'),
+        eq(dependencies.Validate_Parameters.result, 'Succeeded')
+      )
+    jobs:
+      - job:                           HighAvailability_Setup
+        displayName:                   High Availability Setup
+        variables:
+          SID_hosts:                   $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.HOSTS'] ]
+          SID:                         $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.SID'] ]
+          SAP_parameters:              $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.SAP_PARAMETERS'] ]
+          parameters_folder:           $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.FOLDER'] ]
+          DEPLOYMENT_REPO_PATH:        $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.DEPLOYMENT_REPO_PATH'] ]
+          CONFIGURATION_NAME:          $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.CONFIGURATION_NAME'] ]
+
+        steps:
+          - checkout:                  self
+            persistCredentials:        true
+          - download:                  current
+            artifact:                  ansible_data
+          - script: |
+              sudo chmod 600 $(Pipeline.Workspace)/ansible_data/$(CONFIGURATION_NAME)_sshkey
+            displayName:               Process sshkey      
+          - task:                      Ansible@0
+            displayName:               High Availability Setup
+            inputs:
+              ansibleInterface:        "agentMachine"
+              playbookPathOnAgentMachine: "$(DEPLOYMENT_REPO_PATH)/deploy/ansible/playbook_04_00_01_db_ha.yaml"
+              inventoriesAgentMachine: "file"
+              inventoryFileOnAgentMachine: $(Pipeline.Workspace)/ansible_data/$(SID_hosts)
+              args:                    '--private-key $(Pipeline.Workspace)/ansible_data/$(CONFIGURATION_NAME)_sshkey -e "@$(Pipeline.Workspace)/ansible_data/$(SAP_parameters)" -e "_workspace_directory=$(parameters_folder)" $(ExtraParams)'
+              failOnStderr:            false
+            env:
+              ANSIBLE_DISPLAY_SKIPPED_HOSTS: false
+              INTERPRETER_PYTHON:            auto_silent
+              ANSIBLE_CALLBACK_WHITELIST:    profile_tasks
+              DEPLOYMENT_REPO_PATH:          $(DEPLOYMENT_REPO_PATH)
             continueOnError:           false
+            name: HA
 
   - stage: Database_Load
     displayName:                       Database Load
@@ -516,12 +617,15 @@ stages:
       - Software_Acquisition
       - Database_Installation
       - SCS_Installation
+      - HighAvailability_Setup
     condition: |
       and
       (
         eq(${{ parameters.db_load }}, true),
         eq(dependencies.Preparation_for_Ansible.result, 'Succeeded'),
-        eq(dependencies.Software_Acquisition.result, 'Succeeded'),
+        in(dependencies.Software_Acquisition.result, 'Succeeded', 'Skipped'),
+        in(dependencies.SCS_Installation.result, 'Succeeded', 'Skipped'),
+        in(dependencies.HighAvailability_Setup.result, 'Succeeded', 'Skipped'),
         in(dependencies.Database_Installation.result, 'Succeeded', 'Skipped'),
         eq(dependencies.Validate_Parameters.result, 'Succeeded')
       )
@@ -537,12 +641,13 @@ stages:
           CONFIGURATION_NAME:          $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.CONFIGURATION_NAME'] ]
 
         steps:
-          - checkout:                  none
+          - checkout:                  self
             persistCredentials:        true
           - download:                  current
             artifact:                  ansible_data
           - script: |
               sudo chmod 600 $(Pipeline.Workspace)/ansible_data/$(CONFIGURATION_NAME)_sshkey
+            displayName:               Process sshkey
           - task:                      Ansible@0
             displayName:               Database Load
             inputs:
@@ -554,9 +659,29 @@ stages:
               failOnStderr:            false
             env:
               ANSIBLE_DISPLAY_SKIPPED_HOSTS: false
-              ANSIBLE_CALLBACK_WHITELIST: profile_tasks
-              DEPLOYMENT_REPO_PATH:    $(DEPLOYMENT_REPO_PATH)
+              INTERPRETER_PYTHON:            auto_silent
+              ANSIBLE_CALLBACK_WHITELIST:    profile_tasks
+              DEPLOYMENT_REPO_PATH:          $(DEPLOYMENT_REPO_PATH)
             continueOnError:           false
+          - script: |
+              #!/bin/bash
+              green="\e[1;32m" ; reset="\e[0m" ; boldred="\e[1;31m"
+              echo -e "$green--- Add & update files in the DevOps Repository ---$reset"
+                git config --global user.email "$(Build.RequestedForEmail)"
+                git config --global user.name "$(Build.RequestedFor)"
+                git checkout -q $(Branch)
+                git pull
+                cd $(Build.Repository.LocalPath)
+                added=0
+                if [ $(ls $(Deployment_Configuration_Path)/SYSTEM/$(sap_system_folder)/logs/*.zip | wc -l ) -gt 0 ] ; then
+                  git add --ignore-errors $(Deployment_Configuration_Path)/SYSTEM/$(sap_system_folder)/logs
+                  added=1
+                fi
+                if [ 1 == $added ]; then
+                  git commit -m "Added updates from devops Ansible deployment $(Build.DefinitionName) [skip ci]"
+                  git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" push
+                fi
+            displayName:               Copy Log files
 
   - stage: PAS_Installation
     displayName:                       PAS Installation
@@ -566,13 +691,14 @@ stages:
       - Software_Acquisition
       - Database_Installation
       - SCS_Installation
+      - HighAvailability_Setup
       - Database_Load
     condition: |
       and
       (
         eq(${{ parameters.pas_installation }}, true),
         eq(dependencies.Preparation_for_Ansible.result, 'Succeeded'),
-        eq(dependencies.Software_Acquisition.result, 'Succeeded'),
+        in(dependencies.Software_Acquisition.result, 'Succeeded', 'Skipped'),
         eq(dependencies.Validate_Parameters.result, 'Succeeded')
       )
     jobs:
@@ -587,12 +713,13 @@ stages:
           CONFIGURATION_NAME:          $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.CONFIGURATION_NAME'] ]
 
         steps:
-          - checkout:                  none
+          - checkout:                  self
             persistCredentials:        true
           - download:                  current
             artifact:                  ansible_data
           - script: |
               sudo chmod 600 $(Pipeline.Workspace)/ansible_data/$(CONFIGURATION_NAME)_sshkey
+            displayName:               Process sshkey
           - task:                      Ansible@0
             displayName:               PAS Installation
             inputs:
@@ -604,9 +731,29 @@ stages:
               failOnStderr:            false
             env:
               ANSIBLE_DISPLAY_SKIPPED_HOSTS: false
-              ANSIBLE_CALLBACK_WHITELIST: profile_tasks
-              DEPLOYMENT_REPO_PATH:    $(DEPLOYMENT_REPO_PATH)
+              INTERPRETER_PYTHON:            auto_silent
+              ANSIBLE_CALLBACK_WHITELIST:    profile_tasks
+              DEPLOYMENT_REPO_PATH:          $(DEPLOYMENT_REPO_PATH)
             continueOnError:           false
+          - script: |
+              #!/bin/bash
+              green="\e[1;32m" ; reset="\e[0m" ; boldred="\e[1;31m"
+              echo -e "$green--- Add & update files in the DevOps Repository ---$reset"
+                git config --global user.email "$(Build.RequestedForEmail)"
+                git config --global user.name "$(Build.RequestedFor)"
+                git checkout -q $(Branch)
+                git pull
+                cd $(Build.Repository.LocalPath)
+                added=0
+                if [ $(ls $(Deployment_Configuration_Path)/SYSTEM/$(sap_system_folder)/logs/*.zip | wc -l ) -gt 0 ] ; then
+                  git add --ignore-errors $(Deployment_Configuration_Path)/SYSTEM/$(sap_system_folder)/logs
+                  added=1
+                fi
+                if [ 1 == $added ]; then
+                  git commit -m "Added updates from devops Ansible deployment $(Build.DefinitionName) [skip ci]"
+                  git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" push
+                fi
+            displayName:               Copy Log files
 
   - stage: APP_Install
     displayName:                       Application Server Install
@@ -617,13 +764,14 @@ stages:
       - Database_Installation
       - SCS_Installation
       - Database_Load
+      - HighAvailability_Setup
       - PAS_Installation
     condition: |
       and
       (
         eq(${{ parameters.application_server_installation }}, true),
         eq(dependencies.Preparation_for_Ansible.result, 'Succeeded'),
-        eq(dependencies.Software_Acquisition.result, 'Succeeded'),
+        in(dependencies.Software_Acquisition.result, 'Succeeded', 'Skipped'),
         in(dependencies.Database_Installation.result, 'Succeeded', 'Skipped'),
         eq(dependencies.Validate_Parameters.result, 'Succeeded')
       )
@@ -639,12 +787,13 @@ stages:
           CONFIGURATION_NAME:          $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.CONFIGURATION_NAME'] ]
 
         steps:
-          - checkout:                  none
+          - checkout:                  self
             persistCredentials:        true
           - download:                  current
             artifact:                  ansible_data
           - script: |
               sudo chmod 600 $(Pipeline.Workspace)/ansible_data/$(CONFIGURATION_NAME)_sshkey
+            displayName:               Process sshkey
           - task:                      Ansible@0
             displayName:               Application Server Install
             inputs:
@@ -656,9 +805,29 @@ stages:
               failOnStderr:            false
             env:
               ANSIBLE_DISPLAY_SKIPPED_HOSTS: false
-              ANSIBLE_CALLBACK_WHITELIST: profile_tasks
-              DEPLOYMENT_REPO_PATH:    $(DEPLOYMENT_REPO_PATH)
+              INTERPRETER_PYTHON:            auto_silent
+              ANSIBLE_CALLBACK_WHITELIST:    profile_tasks
+              DEPLOYMENT_REPO_PATH:          $(DEPLOYMENT_REPO_PATH)
             continueOnError:           false
+          - script: |
+              #!/bin/bash
+              green="\e[1;32m" ; reset="\e[0m" ; boldred="\e[1;31m"
+              echo -e "$green--- Add & update files in the DevOps Repository ---$reset"
+                git config --global user.email "$(Build.RequestedForEmail)"
+                git config --global user.name "$(Build.RequestedFor)"
+                git checkout -q $(Branch)
+                git pull
+                cd $(Build.Repository.LocalPath)
+                added=0
+                if [ $(ls $(Deployment_Configuration_Path)/SYSTEM/$(sap_system_folder)/logs/*.zip | wc -l ) -gt 0 ] ; then
+                  git add --ignore-errors $(Deployment_Configuration_Path)/SYSTEM/$(sap_system_folder)/logs
+                  added=1
+                fi
+                if [ 1 == $added ]; then
+                  git commit -m "Added updates from devops Ansible deployment $(Build.DefinitionName) [skip ci]"
+                  git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" push
+                fi
+            displayName:               Copy Log files
 
   - stage: WebDispatcher_Installation
     displayName:                       WebDispatcher Installation
@@ -684,12 +853,13 @@ stages:
           CONFIGURATION_NAME:          $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.CONFIGURATION_NAME'] ]
 
         steps:
-          - checkout:                  none
+          - checkout:                  self
             persistCredentials:        true
           - download:                  current
             artifact:                  ansible_data
           - script: |
               sudo chmod 600 $(Pipeline.Workspace)/ansible_data/$(CONFIGURATION_NAME)_sshkey
+            displayName:               Process sshkey
           - task:                      Ansible@0
             displayName:               WebDispatcher Installation
             inputs:
@@ -701,61 +871,29 @@ stages:
               failOnStderr:            false
             env:
               ANSIBLE_DISPLAY_SKIPPED_HOSTS: false
-              ANSIBLE_CALLBACK_WHITELIST: profile_tasks
-              DEPLOYMENT_REPO_PATH:    $(DEPLOYMENT_REPO_PATH)
+              INTERPRETER_PYTHON:            auto_silent
+              ANSIBLE_CALLBACK_WHITELIST:    profile_tasks
+              DEPLOYMENT_REPO_PATH:          $(DEPLOYMENT_REPO_PATH)
             continueOnError:           false
-
-  - stage:                             HighAvailability_Setup
-    displayName:                       High Availability Setup
-    dependsOn:
-      - Preparation_for_Ansible
-      - SAP_Operating_System_Configuration
-      - Software_Acquisition
-      - Database_Installation
-      - Database_Load
-    condition: |
-      and
-      (
-        eq(${{ parameters.high_availability_configuration }}, true),
-        eq(dependencies.Preparation_for_Ansible.result, 'Succeeded'),
-        eq(dependencies.Software_Acquisition.result, 'Succeeded'),
-        in(dependencies.Database_Installation.result, 'Succeeded', 'Skipped'),
-        in(dependencies.Database_Load.result, 'Succeeded', 'Skipped'),
-        eq(dependencies.Validate_Parameters.result, 'Succeeded')
-      )
-    jobs:
-      - job:                           HighAvailability_Setup
-        displayName:                   High Availability Setup
-        variables:
-          SID_hosts:                   $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.HOSTS'] ]
-          SID:                         $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.SID'] ]
-          SAP_parameters:              $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.SAP_PARAMETERS'] ]
-          parameters_folder:           $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.FOLDER'] ]
-          DEPLOYMENT_REPO_PATH:        $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.DEPLOYMENT_REPO_PATH'] ]
-          CONFIGURATION_NAME:          $[ stageDependencies.Preparation_for_Ansible.Preparation_step.outputs['Preparation.CONFIGURATION_NAME'] ]
-
-        steps:
-          - checkout:                  none
-            persistCredentials:        true
-          - download:                  current
-            artifact:                  ansible_data
           - script: |
-              sudo chmod 600 $(Pipeline.Workspace)/ansible_data/$(CONFIGURATION_NAME)_sshkey
-          - task:                      Ansible@0
-            displayName:               High Availability Setup
-            inputs:
-              ansibleInterface:        "agentMachine"
-              playbookPathOnAgentMachine: "$(DEPLOYMENT_REPO_PATH)/deploy/ansible/playbook_04_00_01_db_ha.yaml"
-              inventoriesAgentMachine: "file"
-              inventoryFileOnAgentMachine: $(Pipeline.Workspace)/ansible_data/$(SID_hosts)
-              args:                    '--private-key $(Pipeline.Workspace)/ansible_data/$(CONFIGURATION_NAME)_sshkey -e "@$(Pipeline.Workspace)/ansible_data/$(SAP_parameters)" -e "_workspace_directory=$(parameters_folder)" $(ExtraParams)'
-              failOnStderr:            false
-            env:
-              ANSIBLE_DISPLAY_SKIPPED_HOSTS: false
-              ANSIBLE_CALLBACK_WHITELIST: profile_tasks
-              DEPLOYMENT_REPO_PATH:    $(DEPLOYMENT_REPO_PATH)
-            continueOnError:           false
-            name: HA
+              #!/bin/bash
+              green="\e[1;32m" ; reset="\e[0m" ; boldred="\e[1;31m"
+              echo -e "$green--- Add & update files in the DevOps Repository ---$reset"
+                git config --global user.email "$(Build.RequestedForEmail)"
+                git config --global user.name "$(Build.RequestedFor)"
+                git checkout -q $(Branch)
+                git pull
+                cd $(Build.Repository.LocalPath)
+                added=0
+                if [ $(ls $(Deployment_Configuration_Path)/SYSTEM/$(sap_system_folder)/logs/*.zip | wc -l ) -gt 0 ] ; then
+                  git add --ignore-errors $(Deployment_Configuration_Path)/SYSTEM/$(sap_system_folder)/logs
+                  added=1
+                fi
+                if [ 1 == $added ]; then
+                  git commit -m "Added updates from devops Ansible deployment $(Build.DefinitionName) [skip ci]"
+                  git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" push
+                fi
+            displayName:               Copy Log files
 
   - stage: Post_Installation_Steps
     displayName:                       Post Installation Steps
@@ -765,10 +903,12 @@ stages:
       - SAP_Operating_System_Configuration
       - Software_Acquisition
       - Database_Installation
+      - SCS_Installation
+      - HighAvailability_Setup
       - Database_Load
       - PAS_Installation
       - APP_Install
-      - HighAvailability_Setup
+      - WebDispatcher_Installation
     jobs:
       - job:                           Post_Installation_Steps
         displayName:                   Post Installation Steps
@@ -793,11 +933,6 @@ stages:
                   git add --ignore-errors $(Deployment_Configuration_Path)/SYSTEM/$(sap_system_folder)/logs
                   added=1
                 fi
-                # # if [ -f $(Deployment_Configuration_Path)/SYSTEM/$(sap_system_folder)/$(sap_system_folder)_sshkey ] ; then
-                # #   git rm $(Deployment_Configuration_Path)/SYSTEM/$(sap_system_folder)/$(sap_system_folder)_sshkey
-                # #   added=1
-                # # fi
-
                 if [ 1 == $added ]; then
                   git commit -m "Added updates from devops Ansible deployment $(Build.DefinitionName) [skip ci]"
                   git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" push

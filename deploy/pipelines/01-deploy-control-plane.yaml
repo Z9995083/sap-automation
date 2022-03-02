@@ -1,7 +1,7 @@
 ---
 # /*---------------------------------------------------------------------------8
 # |                                                                            |
-# |               This pipeline deploys the control plane                     |
+# |               This pipeline deploys the control plane                      |
 # |                                                                            |
 # +------------------------------------4--------------------------------------*/
 
@@ -83,28 +83,23 @@ stages:
                   echo "##vso[task.logissue type=error]File DEPLOYER/$(deployerfolder)/$(deployerconfig) was not found."
                   exit 2
                 fi
-
                 if [ ! -f LIBRARY/$(libraryfolder)/$(libraryconfig) ]; then
                   echo -e "$boldred--- File LIBRARY/$(libraryfolder)/$(libraryconfig)  was not found ---$reset"
                   echo "##vso[task.logissue type=error]File LIBRARY/$(libraryfolder)/$(libraryconfig) was not found."
                   exit 2
                 fi
-
                 if [ ! -n $(ARM_SUBSCRIPTION_ID) ]; then
                   echo "##vso[task.logissue type=error]Variable ARM_SUBSCRIPTION_ID was not defined."
                   exit 2
                 fi
-
                 if [ ! -n $(ARM_CLIENT_ID) ]; then
                   echo "##vso[task.logissue type=error]Variable ARM_CLIENT_ID was not defined."
                   exit 2
                 fi
-
                 if [ ! -n $(ARM_CLIENT_SECRET) ]; then
                   echo "##vso[task.logissue type=error]Variable ARM_CLIENT_SECRET was not defined."
                   exit 2
                 fi
-
                 if [ ! -n $(ARM_TENANT_ID) ]; then
                   echo "##vso[task.logissue type=error]Variable ARM_TENANT_ID was not defined."
                   exit 2
@@ -121,7 +116,6 @@ stages:
 
                 az account set --subscription $(ARM_SUBSCRIPTION_ID)
                 az extension add --name storage-blob-preview > /dev/null
-
               echo -e "$green--- Pull the latest content from DevOps ---$reset"
                 git config --global user.email "$(Build.RequestedForEmail)"
                 git config --global user.name "$(Build.RequestedFor)"
@@ -139,28 +133,29 @@ stages:
                 if [ 0 != $return_code ]; then
                   echo "##vso[task.logissue type=error]Return code from prepare_region $return_code."
                 fi
-                git pull
 
               echo -e "$green--- Adding deployment automation configuration to devops repository ---$reset"
                 added=0
+                cd $HOME
+                git pull
 
-                if [ -f $(Deployment_Configuration_Path)/.sap_deployment_automation/${ENVIRONMENT}${LOCATION} ]; then
-                  git add    $(Deployment_Configuration_Path)/.sap_deployment_automation/${ENVIRONMENT}${LOCATION}
+                if [ -f .sap_deployment_automation/${ENVIRONMENT}${LOCATION} ]; then
+                  git add    .sap_deployment_automation/${ENVIRONMENT}${LOCATION}
                   added=1
                 fi
 
-                if [ -f $(Deployment_Configuration_Path)/.sap_deployment_automation/${ENVIRONMENT}${LOCATION}.md ]; then
-                  git add $(Deployment_Configuration_Path)/.sap_deployment_automation/${ENVIRONMENT}${LOCATION}.md
+                if [ -f .sap_deployment_automation/${ENVIRONMENT}${LOCATION}.md ]; then
+                  git add .sap_deployment_automation/${ENVIRONMENT}${LOCATION}.md
                   added=1
                 fi
 
-                if [ -f $(Deployment_Configuration_Path)/DEPLOYER/$(deployerfolder)/.terraform/terraform.tfstate ]; then
-                  git add -f $(Deployment_Configuration_Path)/DEPLOYER/$(deployerfolder)/.terraform/terraform.tfstate
+                if [ -f DEPLOYER/$(deployerfolder)/.terraform/terraform.tfstate ]; then
+                  git add -f DEPLOYER/$(deployerfolder)/.terraform/terraform.tfstate
                   added=1
                 fi
 
-                if [ -f $(Deployment_Configuration_Path)/LIBRARY/$(libraryfolder)/.terraform/terraform.tfstate ]; then
-                  git add -f $(Deployment_Configuration_Path)/LIBRARY/$(libraryfolder)/.terraform/terraform.tfstate
+                if [ -f LIBRARY/$(libraryfolder)/.terraform/terraform.tfstate ]; then
+                  git add -f LIBRARY/$(libraryfolder)/.terraform/terraform.tfstate
                   added=1
                 fi
 
