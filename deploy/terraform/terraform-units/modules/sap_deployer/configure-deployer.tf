@@ -8,11 +8,13 @@ Description:
 // Prepare deployer with pre-installed softwares if pip is created
 resource "null_resource" "prepare-deployer" {
   depends_on = [azurerm_linux_virtual_machine.deployer]
-  count      = local.enable_deployer_public_ip && var.configure ? 1 : 0
+  #count      = local.enable_deployer_public_ip && var.configure ? 1 : 0
+  count      = 1
 
   connection {
     type        = "ssh"
-    host        = azurerm_public_ip.deployer[count.index].ip_address
+    #host        = azurerm_public_ip.deployer[count.index].ip_address
+    host        = azurerm_network_interface.deployer[0].private_ip_address
     user        = local.username
     private_key = var.deployer.authentication.type == "key" ? local.private_key : null
     password    = lookup(var.deployer.authentication, "password", null)
@@ -52,7 +54,8 @@ resource "null_resource" "prepare-deployer" {
 }
 
 resource "local_file" "configure_deployer" {
-  count = local.enable_deployer_public_ip ? 0 : 1
+  #count = local.enable_deployer_public_ip ? 0 : 1
+  count   = 1
   content = templatefile(format("%s/templates/configure_deployer.sh.tmpl", path.module), {
     tfversion       = "1.0.8",
     rg_name         = local.rg_name,
