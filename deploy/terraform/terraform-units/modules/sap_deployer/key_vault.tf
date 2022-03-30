@@ -15,7 +15,7 @@ resource "azurerm_key_vault" "kv_prvt" {
   lifecycle {
     ignore_changes = [
       // Ignore changes to object_id
-      soft_delete_enabled
+      //soft_delete_enabled
     ]
   }
 }
@@ -57,7 +57,7 @@ resource "azurerm_key_vault" "kv_user" {
   lifecycle {
     ignore_changes = [
       // Ignore changes to object_id
-      soft_delete_enabled
+      //soft_delete_enabled
     ]
   }
 
