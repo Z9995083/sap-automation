@@ -105,7 +105,7 @@ variable "deployer_vm_count" {
 
 variable "resource_offset" {
   type    = number
-  default = 0
+  default = 2
 }
 
 variable "database_high_availability" {
