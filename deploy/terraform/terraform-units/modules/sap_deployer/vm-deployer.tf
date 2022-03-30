@@ -32,7 +32,7 @@ resource "azurerm_network_interface" "deployer" {
       "") : (
       length(var.deployer.private_ip_address) > 0 ? (
         var.deployer.private_ip_address) : (
-        cidrhost(local.sub_mgmt_deployed_prefixes[0],  4)
+        cidrhost(local.sub_mgmt_deployed_prefixes[0],  5)
       )
     )
     private_ip_address_allocation = var.deployer.use_DHCP ? "Dynamic" : "Static"
@@ -106,7 +106,8 @@ resource "azurerm_linux_virtual_machine" "deployer" {
 
   connection {
     type        = "ssh"
-    host        = azurerm_public_ip.deployer[count.index].ip_address
+    #host        = azurerm_public_ip.deployer[count.index].ip_address
+    host        = azurerm_network_interface.deployer[0].private_ip_address
     user        = local.username
     private_key = var.deployer.authentication.type == "key" ? local.private_key : null
     password    = lookup(var.deployer.authentication, "password", null)
